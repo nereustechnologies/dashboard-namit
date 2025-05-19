@@ -8,7 +8,7 @@ console.log("Setting up the database...")
 const envPath = path.join(__dirname, "..", ".env")
 if (!fs.existsSync(envPath)) {
   console.log("Creating .env file with database connection...")
-  const envContent = `DATABASE_URL="postgresql://postgres:namit2424@localhost:5432/fitness_tracker"
+  const envContent = `DATABASE_URL="postgresql://blackdb_owner:npg_PdM6zIm7iuTx@ep-odd-block-a454mqje-pooler.us-east-1.aws.neon.tech/blackdb?sslmode=require"
 JWT_SECRET="your_jwt_secret_key"`
   fs.writeFileSync(envPath, envContent)
   console.log(".env file created successfully!")
@@ -25,7 +25,7 @@ try {
 
   // Run the database initialization script
   console.log("Initializing database with seed data...")
-  execSync("node -r ts-node/register scripts/init-db.ts", { stdio: "inherit" })
+  execSync("npx ts-node scripts/init-db.ts", { stdio: "inherit" })
 
   console.log("Database setup completed successfully!")
 } catch (error) {

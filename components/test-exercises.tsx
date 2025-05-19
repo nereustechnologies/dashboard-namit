@@ -38,9 +38,12 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
   const [error, setError] = useState("")
   const [showSensorData, setShowSensorData] = useState(false)
   const [generatingZip, setGeneratingZip] = useState(false)
+  const [lastAction, setLastAction] = useState<string | null>(null) // Added state for last action
 
   // Reference to store CSV data
   const csvDataRef = useRef<{ [key: string]: any[] }>({})
+
+  const orderedCategories = ["mobility", "strength", "endurance"];
 
   const exercises = {
     mobility: [
@@ -85,6 +88,7 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
     setCurrentLeg(null)
     setError("")
     setShowSensorData(false)
+    setLastAction(null) // Reset last action
 
     // Initialize CSV data for this exercise if it doesn't exist
     if (!csvDataRef.current[exerciseId]) {
@@ -280,6 +284,7 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
     if (!activeExercise) return
 
     const timestamp = formatTime(timer)
+    setLastAction(action) // Set last action
 
     // Build exercise-specific data
     let exerciseData: Record<string, any> = {
@@ -290,72 +295,110 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
       customerId: customerData.id,
     }
 
-    // Add exercise-specific fields based on exercise type
-    const repCount = calculateRepCount()
+    if (action === "Exercise Skipped") {
+      exerciseData.phaseLabel = "Skipped";
+      exerciseData.repCount = 0; // Default rep count for skipped
 
-    if (activeExercise === "knee_flexion" || activeExercise === "knee_to_wall") {
-      exerciseData = {
-        ...exerciseData,
-        kneeAngleLeft: leg === "left" || currentLeg === "left" ? generateRandomAngle(5, 90) : "-",
-        kneeAngleRight: leg === "right" || currentLeg === "right" ? generateRandomAngle(12, 90) : "-",
-        phaseLabel: action,
-        repCount,
+      if (activeExercise === "knee_flexion" || activeExercise === "knee_to_wall") {
+        exerciseData.kneeAngleLeft = "-";
+        exerciseData.kneeAngleRight = "-";
+      } else if (activeExercise === "lunge_stretch") {
+        exerciseData.hipFlexionAngle = 0;
+        exerciseData.kneeFlexionAngleLeft = "-";
+        exerciseData.kneeFlexionAngleRight = "-";
+        exerciseData.phaseLabel = "Skipped"; // Already set, but good to be explicit
+        exerciseData.holdDuration = 0;
+        exerciseData.reps = 0; // Specific field for lunge_stretch
+      } else if (activeExercise === "squats") {
+        exerciseData.kneeAngleLeft = "-";
+        exerciseData.kneeAngleRight = "-";
+        exerciseData.hipAngle = "-";
+      } else if (activeExercise === "lunges") {
+        exerciseData.kneeAngleLeft = "-";
+        exerciseData.kneeAngleRight = "-";
+        exerciseData.hipAngle = "-";
+      } else if (activeExercise === "plank_hold") {
+        exerciseData.hipAngle = "-";
+        exerciseData.holdDuration = 0;
+      } else if (activeExercise === "sprint") {
+        exerciseData.velocity = "0";
+        exerciseData.acceleration = "0";
+        exerciseData.strideLength = "0";
+        exerciseData.cadence = "0";
+      } else if (activeExercise === "shuttle_run") {
+        exerciseData.velocity = "0";
+        exerciseData.acceleration = "0";
+        exerciseData.strideLength = "0";
+        exerciseData.cadence = "0";
       }
-    } else if (activeExercise === "lunge_stretch") {
-      exerciseData = {
-        ...exerciseData,
-        hipFlexionAngle: generateRandomAngle(17, 22),
-        kneeFlexionAngleLeft:
-          leg === "left" || currentLeg === "left" ? generateRandomAngle(90, 92) : generateRandomAngle(10, 12),
-        kneeFlexionAngleRight:
-          leg === "right" || currentLeg === "right" ? generateRandomAngle(90, 92) : generateRandomAngle(10, 12),
-        phaseLabel: action,
-        holdDuration: action === "Hold Ended" ? timer : 0,
-        reps: repCount,
-      }
-    } else if (activeExercise === "squats") {
-      exerciseData = {
-        ...exerciseData,
-        kneeAngleLeft: generateRandomAngle(30, 90),
-        kneeAngleRight: generateRandomAngle(30, 90),
-        hipAngle: generateRandomAngle(60, 110),
-        phaseLabel: action,
-        repCount,
-      }
-    } else if (activeExercise === "lunges") {
-      exerciseData = {
-        ...exerciseData,
-        kneeAngleLeft: generateRandomAngle(28, 90),
-        kneeAngleRight: generateRandomAngle(88, 100),
-        hipAngle: generateRandomAngle(108, 130),
-        phaseLabel: action,
-        repCount,
-      }
-    } else if (activeExercise === "plank_hold") {
-      exerciseData = {
-        ...exerciseData,
-        hipAngle: generateRandomAngle(160, 176),
-        phaseLabel: action,
-        holdDuration: action === "Hold Ended" ? timer : action === "Holding" ? timer - 1 : 1,
-      }
-    } else if (activeExercise === "sprint") {
-      exerciseData = {
-        ...exerciseData,
-        velocity: generateRandomValue(2.5, 9.3),
-        acceleration: generateRandomValue(-1.2, 3.1),
-        strideLength: generateRandomValue(1.0, 1.75),
-        cadence: generateRandomValue(160, 192),
-        phaseLabel: action,
-      }
-    } else if (activeExercise === "shuttle_run") {
-      exerciseData = {
-        ...exerciseData,
-        velocity: generateRandomValue(2.5, 8.2),
-        acceleration: generateRandomValue(-2.3, 3.1),
-        strideLength: generateRandomValue(1.0, 1.6),
-        cadence: generateRandomValue(160, 185),
-        phaseLabel: action,
-        repCount,
+    } else {
+      // Add exercise-specific fields based on exercise type for non-skipped actions
+      const repCount = calculateRepCount()
+
+      if (activeExercise === "knee_flexion" || activeExercise === "knee_to_wall") {
+        exerciseData = {
+          ...exerciseData,
+          kneeAngleLeft: leg === "left" || currentLeg === "left" ? generateRandomAngle(5, 90) : "-",
+          kneeAngleRight: leg === "right" || currentLeg === "right" ? generateRandomAngle(12, 90) : "-",
+          phaseLabel: action,
+          repCount,
+        }
+      } else if (activeExercise === "lunge_stretch") {
+        exerciseData = {
+          ...exerciseData,
+          hipFlexionAngle: generateRandomAngle(17, 22),
+          kneeFlexionAngleLeft:
+            leg === "left" || currentLeg === "left" ? generateRandomAngle(90, 92) : generateRandomAngle(10, 12),
+          kneeFlexionAngleRight:
+            leg === "right" || currentLeg === "right" ? generateRandomAngle(90, 92) : generateRandomAngle(10, 12),
+          phaseLabel: action,
+          holdDuration: action === "Hold Ended" ? timer : 0,
+          reps: repCount,
+        }
+      } else if (activeExercise === "squats") {
+        exerciseData = {
+          ...exerciseData,
+          kneeAngleLeft: generateRandomAngle(30, 90),
+          kneeAngleRight: generateRandomAngle(30, 90),
+          hipAngle: generateRandomAngle(60, 110),
+          phaseLabel: action,
+          repCount,
+        }
+      } else if (activeExercise === "lunges") {
+        exerciseData = {
+          ...exerciseData,
+          kneeAngleLeft: generateRandomAngle(28, 90),
+          kneeAngleRight: generateRandomAngle(88, 100),
+          hipAngle: generateRandomAngle(108, 130),
+          phaseLabel: action,
+          repCount,
+        }
+      } else if (activeExercise === "plank_hold") {
+        exerciseData = {
+          ...exerciseData,
+          hipAngle: generateRandomAngle(160, 176),
+          phaseLabel: action,
+          holdDuration: action === "Hold Ended" ? timer : action === "Holding" ? timer - 1 : 1,
+        }
+      } else if (activeExercise === "sprint") {
+        exerciseData = {
+          ...exerciseData,
+          velocity: generateRandomValue(2.5, 9.3),
+          acceleration: generateRandomValue(-1.2, 3.1),
+          strideLength: generateRandomValue(1.0, 1.75),
+          cadence: generateRandomValue(160, 192),
+          phaseLabel: action,
+        }
+      } else if (activeExercise === "shuttle_run") {
+        exerciseData = {
+          ...exerciseData,
+          velocity: generateRandomValue(2.5, 8.2),
+          acceleration: generateRandomValue(-2.3, 3.1),
+          strideLength: generateRandomValue(1.0, 1.6),
+          cadence: generateRandomValue(160, 185),
+          phaseLabel: action,
+          repCount,
+        }
       }
     }
 
@@ -407,7 +450,7 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
 
   function calculateRepCount() {
     // Simple logic to determine rep count based on actions recorded
-    const actionsForExercise = exerciseData.filter((data) => data.exerciseId === activeExercise)
+    const actionsForExercise = exerciseData.filter((data) => data.exerciseId === activeExercise && data.action !== "Exercise Skipped")
     const endActions = actionsForExercise.filter(
       (data) => data.action === "Rep Ended" || data.action === "Hold Ended" || data.action === "Sprint Ended",
     )
@@ -522,6 +565,64 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
     setExerciseStarted(false)
     setTimer(0)
     setCurrentLeg(null)
+    setLastAction(null) // Reset last action
+  }
+
+  const handleSkipExercise = async () => {
+    if (!activeExercise) return;
+
+    // Record the skip action
+    // Use currentLeg if set, otherwise "N/A" will be handled by recordAction
+    await recordAction("Exercise Skipped", currentLeg || undefined);
+
+    // Mark exercise as completed
+    setExerciseState((prevState) => {
+      const updatedState = { ...prevState };
+      for (const category in updatedState) {
+        // Ensure category exists and is an array
+        if (Object.prototype.hasOwnProperty.call(updatedState, category) && Array.isArray(updatedState[category])) {
+            const exerciseIndex = updatedState[category].findIndex((ex: any) => ex.id === activeExercise);
+            if (exerciseIndex !== -1) {
+            updatedState[category] = [
+                ...updatedState[category].slice(0, exerciseIndex),
+                { ...updatedState[category][exerciseIndex], completed: true },
+                ...updatedState[category].slice(exerciseIndex + 1),
+            ];
+            break; 
+            }
+        }
+      }
+      return updatedState;
+    });
+
+    // Stop the timer
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+
+    // Reset exercise state
+    setActiveExercise(null);
+    setExerciseStarted(false);
+    setTimer(0);
+    setCurrentLeg(null);
+    setLastAction("Exercise Skipped"); // Update last action
+  };
+
+  const currentCategoryIndex = orderedCategories.indexOf(activeCategory);
+
+  const canGoToPreviousCategory = !exerciseStarted && currentCategoryIndex > 0;
+  const previousCategoryName = canGoToPreviousCategory ? orderedCategories[currentCategoryIndex - 1] : "";
+
+  const canGoToNextCategory = !exerciseStarted && currentCategoryIndex < orderedCategories.length - 1;
+  const nextCategoryName = canGoToNextCategory ? orderedCategories[currentCategoryIndex + 1] : "";
+  let isNextCategoryEnabled = false;
+  if (canGoToNextCategory) {
+    if (activeCategory === "mobility" && mobilityCompleted) {
+      isNextCategoryEnabled = true;
+    } else if (activeCategory === "strength" && strengthCompleted) {
+      isNextCategoryEnabled = true;
+    }
   }
 
   return (
@@ -774,23 +875,26 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Rep Began")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Rep Began" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Rep Began
                       </Button>
                       <Button
                         onClick={() => recordAction("Max Knee Flexion")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Max Knee Flexion" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Max Knee Flexion
                       </Button>
                       <Button
                         onClick={() => recordAction("Max Knee Extension")}
-                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-black"
+                        className={`w-full ${lastAction === "Max Knee Extension" ? "bg-yellow-600 hover:bg-yellow-700 text-black ring-2 ring-black ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Max Knee Extension
                       </Button>
-                      <Button onClick={() => recordAction("Rep Ended")} className="w-full bg-red-600 hover:bg-red-700">
+                      <Button
+                        onClick={() => recordAction("Rep Ended")}
+                        className={`w-full ${lastAction === "Rep Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
+                      >
                         Rep Ended
                       </Button>
                     </div>
@@ -800,17 +904,20 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Hold Began")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Hold Began" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Hold Began
                       </Button>
                       <Button
                         onClick={() => recordAction("Holding")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Holding" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Holding
                       </Button>
-                      <Button onClick={() => recordAction("Hold Ended")} className="w-full bg-red-600 hover:bg-red-700">
+                      <Button
+                        onClick={() => recordAction("Hold Ended")}
+                        className={`w-full ${lastAction === "Hold Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
+                      >
                         Hold Ended
                       </Button>
                     </div>
@@ -820,17 +927,20 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Rep Began")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Rep Began" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Rep Began
                       </Button>
                       <Button
                         onClick={() => recordAction("Max Knee Flexion")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Max Knee Flexion" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Max Knee Flexion
                       </Button>
-                      <Button onClick={() => recordAction("Rep Ended")} className="w-full bg-red-600 hover:bg-red-700">
+                      <Button
+                        onClick={() => recordAction("Rep Ended")}
+                        className={`w-full ${lastAction === "Rep Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
+                      >
                         Rep Ended
                       </Button>
                     </div>
@@ -840,17 +950,20 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Rep Began")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Rep Began" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Rep Began
                       </Button>
                       <Button
                         onClick={() => recordAction("Full Squat")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Full Squat" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Full Squat
                       </Button>
-                      <Button onClick={() => recordAction("Rep Ended")} className="w-full bg-red-600 hover:bg-red-700">
+                      <Button
+                        onClick={() => recordAction("Rep Ended")}
+                        className={`w-full ${lastAction === "Rep Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
+                      >
                         Rep Ended
                       </Button>
                     </div>
@@ -860,17 +973,20 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Rep Began")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Rep Began" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Rep Began
                       </Button>
                       <Button
                         onClick={() => recordAction("Full Lunge")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Full Lunge" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Full Lunge
                       </Button>
-                      <Button onClick={() => recordAction("Rep Ended")} className="w-full bg-red-600 hover:bg-red-700">
+                      <Button
+                        onClick={() => recordAction("Rep Ended")}
+                        className={`w-full ${lastAction === "Rep Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
+                      >
                         Rep Ended
                       </Button>
                     </div>
@@ -880,17 +996,20 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Hold Started")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Hold Started" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Hold Started
                       </Button>
                       <Button
                         onClick={() => recordAction("Holding")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Holding" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Holding
                       </Button>
-                      <Button onClick={() => recordAction("Hold Ended")} className="w-full bg-red-600 hover:bg-red-700">
+                      <Button
+                        onClick={() => recordAction("Hold Ended")}
+                        className={`w-full ${lastAction === "Hold Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
+                      >
                         Hold Ended
                       </Button>
                     </div>
@@ -900,19 +1019,19 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Sprint Started")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Sprint Started" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Sprint Started
                       </Button>
                       <Button
                         onClick={() => recordAction("Sprinting")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Sprinting" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Sprinting
                       </Button>
                       <Button
                         onClick={() => recordAction("Sprint Ended")}
-                        className="w-full bg-red-600 hover:bg-red-700"
+                        className={`w-full ${lastAction === "Sprint Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Sprint Ended
                       </Button>
@@ -923,25 +1042,25 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                     <div className="space-y-2">
                       <Button
                         onClick={() => recordAction("Run Started")}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        className={`w-full ${lastAction === "Run Started" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Run Started
                       </Button>
                       <Button
                         onClick={() => recordAction("Sprinting")}
-                        className="w-full bg-purple-600 hover:bg-purple-700"
+                        className={`w-full ${lastAction === "Sprinting" ? "bg-purple-600 hover:bg-purple-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Sprinting
                       </Button>
                       <Button
                         onClick={() => recordAction("Direction Changed")}
-                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-black"
+                        className={`w-full ${lastAction === "Direction Changed" ? "bg-yellow-600 hover:bg-yellow-700 text-black ring-2 ring-black ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Direction Changed
                       </Button>
                       <Button
                         onClick={() => recordAction("Sprint Ended")}
-                        className="w-full bg-red-600 hover:bg-red-700"
+                        className={`w-full ${lastAction === "Sprint Ended" ? "bg-red-600 hover:bg-red-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         Sprint Ended
                       </Button>
@@ -955,14 +1074,14 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                 <div className="space-y-2">
                   <Button
                     onClick={() => setLeg("left")}
-                    className={`w-full ${currentLeg === "left" ? "bg-green-600" : "bg-gray-700"} hover:bg-green-700`}
+                    className={`w-full ${currentLeg === "left" ? "bg-green-600 hover:bg-green-700" : "bg-gray-700 hover:bg-gray-600"} ${lastAction === "Selected left Leg" ? "ring-2 ring-white ring-offset-2 ring-offset-gray-900" : ""}`}
                   >
                     <ArrowLeft size={16} className="mr-1" />
                     Left Leg
                   </Button>
                   <Button
                     onClick={() => setLeg("right")}
-                    className={`w-full ${currentLeg === "right" ? "bg-green-600" : "bg-gray-700"} hover:bg-green-700`}
+                    className={`w-full ${currentLeg === "right" ? "bg-green-600 hover:bg-green-700" : "bg-gray-700 hover:bg-gray-600"} ${lastAction === "Selected right Leg" ? "ring-2 ring-white ring-offset-2 ring-offset-gray-900" : ""}`}
                   >
                     <ArrowRight size={16} className="mr-1" />
                     Right Leg
@@ -981,7 +1100,7 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                             recordAction("Timer Paused")
                           }
                         }}
-                        className="flex-1 bg-yellow-600 hover:bg-yellow-700"
+                        className={`flex-1 ${lastAction === "Timer Paused" ? "bg-yellow-600 hover:bg-yellow-700 text-black ring-2 ring-black ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                       >
                         <Pause size={16} className="mr-1" />
                         Pause
@@ -995,7 +1114,7 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                           setTimerInterval(interval)
                           recordAction("Timer Resumed")
                         }}
-                        className="flex-1 bg-green-600 hover:bg-green-700"
+                        className={`flex-1 ${lastAction === "Timer Resumed" ? "bg-green-600 hover:bg-green-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                         disabled={!exerciseStarted}
                       >
                         <Play size={16} className="mr-1" />
@@ -1007,7 +1126,7 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
                         setTimer(0)
                         recordAction("Timer Reset")
                       }}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      className={`flex-1 ${lastAction === "Timer Reset" ? "bg-blue-600 hover:bg-blue-700 ring-2 ring-white ring-offset-2 ring-offset-gray-900" : "bg-gray-700 hover:bg-gray-600 text-white"}`}
                     >
                       <RotateCcw size={16} className="mr-1" />
                       Reset
@@ -1018,9 +1137,16 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
             </div>
 
             <div className="flex justify-end">
-              <Button onClick={completeExercise} className="bg-[#00D4EF] hover:bg-[#00D4EF]/80 text-black">
+              <Button onClick={completeExercise} className="bg-[#00D4EF] hover:bg-[#00D4EF]/80 text-black mr-2">
                 <CheckCircle size={16} className="mr-1" />
                 Complete Exercise
+              </Button>
+              <Button
+                onClick={handleSkipExercise}
+                variant="outline"
+                className="bg-orange-600 hover:bg-orange-700 text-white border-orange-700"
+              >
+                Skip Exercise
               </Button>
             </div>
           </CardContent>
@@ -1102,39 +1228,62 @@ export default function TestExercises({ onComplete, customerData }: TestExercise
         </Card>
       )}
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={() => window.history.back()} className="border-gray-700">
-          Back
-        </Button>
-
-        {generatingZip && (
-          <span className="mr-3 text-sm text-gray-400 flex items-center">
-            <svg
-              className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
+      <div className="flex justify-between items-center mt-8">
+        <div className="flex gap-2 items-center">
+          <Button variant="outline" onClick={() => window.history.back()} className="border-gray-700">
+            Back
+          </Button>
+          {canGoToPreviousCategory && (
+            <Button
+              variant="outline"
+              onClick={() => setActiveCategory(previousCategoryName)}
+              className="border-gray-600 text-gray-300"
             >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            Generating report...
-          </span>
-        )}
+              <ArrowLeft size={16} className="mr-1" />
+              Go to {previousCategoryName.charAt(0).toUpperCase() + previousCategoryName.slice(1)}
+            </Button>
+          )}
+          {canGoToNextCategory && (
+            <Button
+              onClick={() => setActiveCategory(nextCategoryName)}
+              disabled={!isNextCategoryEnabled}
+              className={`${isNextCategoryEnabled ? "bg-[#00D4EF] hover:bg-[#00D4EF]/80 text-black" : "bg-gray-700 text-gray-500 cursor-not-allowed"}`}
+            >
+              Proceed to {nextCategoryName.charAt(0).toUpperCase() + nextCategoryName.slice(1)}
+              <ArrowRight size={16} className="ml-1" />
+            </Button>
+          )}
+        </div>
 
-        <Button
-          onClick={() => generateAndCompleteTest()}
-          disabled={!mobilityCompleted || !strengthCompleted || !enduranceCompleted}
-          className="bg-[#00D4EF] hover:bg-[#00D4EF]/80 text-black"
-        >
-          Complete Testing
-        </Button>
+        <div className="flex items-center gap-2">
+          {generatingZip && (
+            <span className="text-sm text-gray-400 flex items-center">
+              <svg
+                className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              Generating report...
+            </span>
+          )}
+
+          <Button
+            onClick={() => generateAndCompleteTest()}
+            disabled={!mobilityCompleted || !strengthCompleted || !enduranceCompleted || generatingZip}
+            className="bg-[#00D4EF] hover:bg-[#00D4EF]/80 text-black"
+          >
+            Complete Testing
+          </Button>
+        </div>
       </div>
     </div>
   )
 }
-
